@@ -1,0 +1,83 @@
+{
+  "name": "file-synchronizer",
+  "private": true,
+  "version": "0.0.1",
+  "productName": "SyncFlow",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.electron.json && cross-env NODE_ENV=development electron .",
+    "build": "tsc -b && vite build && tsc -p tsconfig.electron.json",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "check": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-toast": "^1.2.15",
+    "chokidar": "^5.0.0",
+    "clsx": "^2.1.1",
+    "electron-log": "^5.4.3",
+    "electron-store": "^11.0.2",
+    "framer-motion": "^12.31.2",
+    "i18next": "^25.8.4",
+    "lucide-react": "^0.511.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^16.5.4",
+    "react-router-dom": "^7.13.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/node": "^22.19.8",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.4.1",
+    "autoprefixer": "^10.4.24",
+    "babel-plugin-react-dev-locator": "^1.0.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.1.0",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5",
+    "vite-plugin-trae-solo-badge": "^1.0.0",
+    "vite-tsconfig-paths": "^5.1.4",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "productName": "SyncFlow",
+    "appId": "top.aengus.filesync",
+    "directories": {
+      "buildResources": "build"
+    },
+    "mac": {
+      "bundleVersion": "1.0.0",
+      "category": "public.app-category.utilities",
+      "icon": "build/icons/app-icon.png",
+      "extendInfo": {
+        "CFBundleName": "SyncFlow",
+        "CFBundleDisplayName": "SyncFlow"
+      }
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icons/app-icon.png",
+      "executableName": "SyncFlow"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icons/app-icon.png"
+    }
+  }
+}
