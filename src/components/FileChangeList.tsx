@@ -4,13 +4,6 @@ import { useStore, FileEvent } from '../store';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 
-type EventWithSnapshot = FileEvent & {
-  origin?: 'source' | 'target';
-  fromDir?: string;
-  toDir?: string;
-  labelStyle?: 'oneWay' | 'twoWay';
-};
-
 export const FileChangeList: React.FC = () => {
   const { fileEvents, setFileEvents, updateStatus } = useStore();
   const { t } = useTranslation();
@@ -117,15 +110,15 @@ export const FileChangeList: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {fileEvents.map((ev, index) => {
-                const event = ev as EventWithSnapshot;
+              {fileEvents.map((event, index) => {
+                const operationType = (event.operation || event.type) as FileEvent['type'];
                 return (
                 <tr key={index} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="inline-flex items-center gap-2">
-                      <span className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", getEventColor((event as any).operation ?? event.type))}>
-                        {getEventIcon(((event as any).operation ?? event.type) as FileEvent['type'])}
-                        {getEventLabel(((event as any).operation ?? event.type) as FileEvent['type'])}
+                      <span className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", getEventColor(operationType))}>
+                        {getEventIcon(operationType)}
+                        {getEventLabel(operationType)}
                       </span>
                       {event.type === 'skipped' && (
                         <span className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium", getEventColor('skipped'))}>

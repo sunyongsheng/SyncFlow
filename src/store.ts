@@ -4,7 +4,11 @@ export interface FileEvent {
   type: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir' | 'skipped';
   path: string;
   timestamp: number;
-  origin?: 'source' | 'target';
+  origin: 'source' | 'target';
+  fromDir: string;
+  toDir: string;
+  labelStyle: 'oneWay' | 'twoWay';
+  operation?: string;
 }
 
 export interface SyncStatus {

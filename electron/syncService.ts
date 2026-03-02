@@ -1,21 +1,23 @@
+import { FSWatcher } from 'chokidar';
 import chokidar from 'chokidar';
 import fs from 'fs';
 import path from 'path';
 import { BrowserWindow, Notification } from 'electron';
 import log from 'electron-log';
+import { SyncOptions, FileLogEntry, SyncStatus } from './types';
 
 export class SyncService {
-  private watcher: any = null; // one-way watcher
-  private watcherSource: any = null; // two-way mode: watcher for sourcePath
-  private watcherTarget: any = null; // two-way mode: watcher for targetPath
+  private watcher: FSWatcher | null = null; // one-way watcher
+  private watcherSource: FSWatcher | null = null; // two-way mode: watcher for sourcePath
+  private watcherTarget: FSWatcher | null = null; // two-way mode: watcher for targetPath
   private sourcePath: string = '';
   private targetPath: string = '';
-  private options: any = {};
+  private options: SyncOptions = {};
   public mainWindow: BrowserWindow;
   private isSyncing: boolean = false;
   private suppressSet: Set<string> = new Set(); // suppress events caused by our own writes
 
-  private recentLogs: any[] = [];
+  private recentLogs: FileLogEntry[] = [];
   private stats: { syncedFiles: number; failedFiles: number } = { syncedFiles: 0, failedFiles: 0 };
 
   constructor(mainWindow: BrowserWindow) {
@@ -30,7 +32,7 @@ export class SyncService {
     this.recentLogs = [];
   }
 
-  private addLog(log: any) {
+  private addLog(log: FileLogEntry) {
     this.recentLogs.unshift(log);
     if (this.recentLogs.length > 100) {
       this.recentLogs.pop();
@@ -64,7 +66,7 @@ export class SyncService {
     return isIgnored;
   }
 
-  async startSync(sourcePath: string, targetPath: string, options: any) {
+  async startSync(sourcePath: string, targetPath: string, options: SyncOptions) {
     if (this.watcher) {
       await this.stopSync();
     }
@@ -106,7 +108,7 @@ export class SyncService {
         .on('unlink', (filePath: string) => this.handleFileChangeTwoWay('source', 'unlink', filePath))
         .on('addDir', (filePath: string) => this.handleFileChangeTwoWay('source', 'addDir', filePath))
         .on('unlinkDir', (filePath: string) => this.handleFileChangeTwoWay('source', 'unlinkDir', filePath))
-        .on('error', (error: Error) => this.handleError(error));
+        .on('error', (error: unknown) => this.handleError(error));
 
       this.watcherTarget
         .on('add', (filePath: string) => this.handleFileChangeTwoWay('target', 'add', filePath))
@@ -114,7 +116,7 @@ export class SyncService {
         .on('unlink', (filePath: string) => this.handleFileChangeTwoWay('target', 'unlink', filePath))
         .on('addDir', (filePath: string) => this.handleFileChangeTwoWay('target', 'addDir', filePath))
         .on('unlinkDir', (filePath: string) => this.handleFileChangeTwoWay('target', 'unlinkDir', filePath))
-        .on('error', (error: Error) => this.handleError(error));
+        .on('error', (error: unknown) => this.handleError(error));
 
       log.info(`Started two-way watching ${sourcePath} <-> ${targetPath}`);
     } else {
@@ -125,7 +127,7 @@ export class SyncService {
         .on('unlink', (filePath: string) => this.handleFileChange('unlink', filePath))
         .on('addDir', (filePath: string) => this.handleFileChange('addDir', filePath))
         .on('unlinkDir', (filePath: string) => this.handleFileChange('unlinkDir', filePath))
-        .on('error', (error: Error) => this.handleError(error));
+        .on('error', (error: unknown) => this.handleError(error));
       log.info(`Started watching ${sourcePath}`);
     }
   }
@@ -161,16 +163,7 @@ export class SyncService {
     // Check if file should be ignored (Force recompile)
     if (this.shouldIgnore(filePath)) {
       const relativePath = path.relative(this.sourcePath, filePath);
-      const logEntry = {
-        type: 'skipped', // New type for skipped files
-        path: relativePath,
-        timestamp: Date.now(),
-        origin: 'source',
-        fromDir: this.sourcePath,
-        toDir: this.targetPath,
-        labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay',
-        operation: type
-      };
+      const logEntry = this.createLogEntry('skipped', relativePath, 'source', type);
       this.addLog(logEntry);
       this.notifyFileChange(logEntry);
       return;
@@ -183,15 +176,7 @@ export class SyncService {
 
     try {
       if (type === 'add' || type === 'change') {
-        const logEntry = {
-          type,
-          path: relativePath,
-          timestamp: Date.now(),
-          origin: 'source',
-          fromDir: this.sourcePath,
-          toDir: this.targetPath,
-          labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay'
-        };
+        const logEntry = this.createLogEntry(type, relativePath, 'source');
         this.addLog(logEntry);
         this.notifyFileChange(logEntry);
         // Ensure target directory exists
@@ -210,31 +195,14 @@ export class SyncService {
         const deleteOnSync = this.options.deleteOnSync !== false;
         
         if (!deleteOnSync) {
-          const skipped = {
-            type: 'skipped',
-            path: relativePath,
-            timestamp: Date.now(),
-            origin: 'source',
-            fromDir: this.sourcePath,
-            toDir: this.targetPath,
-            labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay',
-            operation: 'unlink'
-          };
+          const skipped = this.createLogEntry('skipped', relativePath, 'source', 'unlink');
           this.addLog(skipped);
           this.notifyFileChange(skipped);
           log.info(`Skipped deletion (deleteOnSync disabled): ${targetFile}`);
           return;
         }
         
-        const delLog = {
-          type: 'unlink',
-          path: relativePath,
-          timestamp: Date.now(),
-          origin: 'source',
-          fromDir: this.sourcePath,
-          toDir: this.targetPath,
-          labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay'
-        };
+        const delLog = this.createLogEntry('unlink', relativePath, 'source');
         this.addLog(delLog);
         this.notifyFileChange(delLog);
         
@@ -245,15 +213,7 @@ export class SyncService {
           this.notifySyncSuccess(relativePath, 'delete');
         }
       } else if (type === 'addDir') {
-        const logEntry = {
-          type,
-          path: relativePath,
-          timestamp: Date.now(),
-          origin: 'source',
-          fromDir: this.sourcePath,
-          toDir: this.targetPath,
-          labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay'
-        };
+        const logEntry = this.createLogEntry(type, relativePath, 'source');
         this.addLog(logEntry);
         this.notifyFileChange(logEntry);
         if (!fs.existsSync(targetFile)) {
@@ -264,30 +224,13 @@ export class SyncService {
         const deleteOnSync = this.options.deleteOnSync !== false;
 
         if (!deleteOnSync) {
-          const skipped = {
-            type: 'skipped',
-            path: relativePath,
-            timestamp: Date.now(),
-            origin: 'source',
-            fromDir: this.sourcePath,
-            toDir: this.targetPath,
-            labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay',
-            operation: 'unlinkDir'
-          };
+          const skipped = this.createLogEntry('skipped', relativePath, 'source', 'unlinkDir');
           this.addLog(skipped);
           this.notifyFileChange(skipped);
           return;
         }
         
-        const delLog = {
-          type: 'unlinkDir',
-          path: relativePath,
-          timestamp: Date.now(),
-          origin: 'source',
-          fromDir: this.sourcePath,
-          toDir: this.targetPath,
-          labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay'
-        };
+        const delLog = this.createLogEntry('unlinkDir', relativePath, 'source');
         this.addLog(delLog);
         this.notifyFileChange(delLog);
         
@@ -297,9 +240,10 @@ export class SyncService {
           fs.rmSync(targetFile, { recursive: true, force: true });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Error syncing ${filePath}:`, error);
-      this.notifySyncError(relativePath, error.message || String(error));
+      this.notifySyncError(relativePath, errorMessage);
     }
   }
 
@@ -316,16 +260,7 @@ export class SyncService {
     if (this.shouldIgnore(filePath)) {
       const baseRoot = origin === 'source' ? this.sourcePath : this.targetPath;
       const relativePath = path.relative(baseRoot, filePath);
-      const logEntry = { 
-        type: 'skipped', 
-        path: relativePath, 
-        timestamp: Date.now(), 
-        origin,
-        fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-        toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-        labelStyle: 'twoWay',
-        operation: type
-      };
+      const logEntry = this.createLogEntry('skipped', relativePath, origin, type);
       this.addLog(logEntry);
       this.notifyFileChange(logEntry);
       return;
@@ -339,15 +274,7 @@ export class SyncService {
 
     try {
       if (type === 'add' || type === 'change') {
-        const logEntry = { 
-          type, 
-          path: relativePath, 
-          timestamp: Date.now(), 
-          origin,
-          fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-          toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-          labelStyle: 'twoWay'
-        };
+        const logEntry = this.createLogEntry(type, relativePath, origin);
         this.addLog(logEntry);
         this.notifyFileChange(logEntry);
         const destDir = path.dirname(destFile);
@@ -361,28 +288,11 @@ export class SyncService {
       } else if (type === 'unlink') {
         const deleteOnSync = this.options.deleteOnSync !== false;
         if (!deleteOnSync) {
-          const skipped = { 
-            type: 'skipped', 
-            path: relativePath, 
-            timestamp: Date.now(), 
-            origin,
-            fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-            toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-            labelStyle: 'twoWay',
-            operation: 'unlink'
-          };
+          const skipped = this.createLogEntry('skipped', relativePath, origin, 'unlink');
           this.addLog(skipped);
           this.notifyFileChange(skipped);
         } else if (deleteOnSync && fs.existsSync(destFile)) {
-          const delLog = { 
-            type: 'unlink', 
-            path: relativePath, 
-            timestamp: Date.now(), 
-            origin,
-            fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-            toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-            labelStyle: 'twoWay'
-          };
+          const delLog = this.createLogEntry('unlink', relativePath, origin);
           this.addLog(delLog);
           this.notifyFileChange(delLog);
           this.suppressSet.add(destFile);
@@ -391,15 +301,7 @@ export class SyncService {
           this.notifySyncSuccess(relativePath, 'delete');
         }
       } else if (type === 'addDir') {
-        const logEntry = { 
-          type, 
-          path: relativePath, 
-          timestamp: Date.now(), 
-          origin,
-          fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-          toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-          labelStyle: 'twoWay'
-        };
+        const logEntry = this.createLogEntry(type, relativePath, origin);
         this.addLog(logEntry);
         this.notifyFileChange(logEntry);
         if (!fs.existsSync(destFile)) {
@@ -408,60 +310,63 @@ export class SyncService {
       } else if (type === 'unlinkDir') {
         const deleteOnSync = this.options.deleteOnSync !== false;
         if (!deleteOnSync) {
-          const skipped = { 
-            type: 'skipped', 
-            path: relativePath, 
-            timestamp: Date.now(), 
-            origin,
-            fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-            toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-            labelStyle: 'twoWay',
-            operation: 'unlinkDir'
-          };
+          const skipped = this.createLogEntry('skipped', relativePath, origin, 'unlinkDir');
           this.addLog(skipped);
           this.notifyFileChange(skipped);
         } else if (deleteOnSync && fs.existsSync(destFile)) {
-          const delLog = { 
-            type: 'unlinkDir', 
-            path: relativePath, 
-            timestamp: Date.now(), 
-            origin,
-            fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
-            toDir: origin === 'source' ? this.targetPath : this.sourcePath,
-            labelStyle: 'twoWay'
-          };
+          const delLog = this.createLogEntry('unlinkDir', relativePath, origin);
           this.addLog(delLog);
           this.notifyFileChange(delLog);
           this.suppressSet.add(destFile);
           fs.rmSync(destFile, { recursive: true, force: true });
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Error two-way syncing ${filePath}:`, error);
-      this.notifySyncError(relativePath, error.message || String(error));
+      this.notifySyncError(relativePath, errorMessage);
     }
   }
 
-  private handleError(error: any) {
+  private createLogEntry(
+    type: string,
+    relativePath: string,
+    origin: 'source' | 'target',
+    operation?: string
+  ): FileLogEntry {
+    return {
+      type: type as FileLogEntry['type'],
+      path: relativePath,
+      timestamp: Date.now(),
+      origin,
+      fromDir: origin === 'source' ? this.sourcePath : this.targetPath,
+      toDir: origin === 'source' ? this.targetPath : this.sourcePath,
+      labelStyle: this.options.syncMode === 'twoWay' ? 'twoWay' : 'oneWay',
+      operation: operation || type
+    };
+  }
+
+  private handleError(error: unknown) {
     log.error('Watcher error:', error);
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send('sync-status', { error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.mainWindow.webContents.send('sync-status', { error: errorMessage });
     }
   }
 
-  private sendStatus(status: any) {
+  private sendStatus(status: SyncStatus) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('sync-status', status);
     }
   }
 
-  private notifyFileChange(logEntry: any) {
+  private notifyFileChange(logEntry: FileLogEntry) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('file-change', logEntry);
     }
   }
 
-  private notifySyncSuccess(path: string, operation: string) {
+  private notifySyncSuccess(filePath: string, operation: string) {
     // We could send a more detailed update here
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       // Calculate sync stats
@@ -504,14 +409,14 @@ export class SyncService {
       const isWinOrLinux = process.platform === 'win32' || process.platform === 'linux';
       let iconPath: string | undefined;
       if (isWinOrLinux) {
-        const devIcon = require('path').join(__dirname, '../public/app-icon.png');
+        const devIcon = path.join(__dirname, '../public/app-icon.png');
         if (fs.existsSync(devIcon)) {
           iconPath = devIcon;
         }
       }
-      const opts: any = {
+      const opts: Electron.NotificationConstructorOptions = {
         title: title,
-        body: `${operationText}: ${path}`,
+        body: `${operationText}: ${filePath}`,
         silent: true
       };
       if (iconPath) {
@@ -522,11 +427,11 @@ export class SyncService {
     }
   }
 
-  private notifySyncError(path: string, error: string) {
+  private notifySyncError(filePath: string, error: string) {
     if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.stats.failedFiles++;
       this.mainWindow.webContents.send('sync-status', {
-        error: `Failed to sync ${path}: ${error}`,
+        error: `Failed to sync ${filePath}: ${error}`,
         failedFiles: this.stats.failedFiles
       });
     }

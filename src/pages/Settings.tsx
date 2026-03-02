@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import { useStore, UserSettings } from '../store';
 import { Languages, Check, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import * as Select from '@radix-ui/react-select';
-import { clsx } from 'clsx';
 
 export const Settings: React.FC = () => {
   const { settings, setSettings } = useStore();
@@ -21,14 +19,14 @@ export const Settings: React.FC = () => {
         }
       }
     });
-  }, []); // Remove dependencies to run only once on mount
+  }, [i18n, setSettings]); // Remove dependencies to run only once on mount
 
-  const handleChange = React.useCallback((key: keyof UserSettings, value: any) => {
+  const handleChange = React.useCallback((key: keyof UserSettings, value: UserSettings[keyof UserSettings]) => {
     setSettings({ [key]: value });
     if (key === 'language') {
-      i18n.changeLanguage(value);
+      i18n.changeLanguage(value as string);
       // Immediately save language preference to avoid reset on reload
-      window.electron.saveSettings({ ...settings, language: value });
+      window.electron.saveSettings({ ...settings, language: value as 'en' | 'zh' });
     } else {
       // Auto-save other settings immediately
       window.electron.saveSettings({ ...settings, [key]: value });

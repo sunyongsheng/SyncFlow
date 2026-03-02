@@ -25,6 +25,11 @@ export const Home: React.FC = () => {
     setSettings
   } = useStore();
 
+  const fileEventsRef = React.useRef(fileEvents);
+  useEffect(() => {
+    fileEventsRef.current = fileEvents;
+  }, [fileEvents]);
+
   useEffect(() => {
     // Load settings first to apply language
     window.electron.getSettings().then((savedSettings) => {
@@ -65,7 +70,7 @@ export const Home: React.FC = () => {
         }
       }
     });
-  }, []); // Run only once on mount
+  }, [i18n, setFileEvents, setSettings, setSourcePath, setSyncing, setTargetPath, updateStatus]); // Run only once on mount
 
   useEffect(() => {
     // Listen for status updates
@@ -80,7 +85,7 @@ export const Home: React.FC = () => {
     const cleanupFiles = window.electron.onFileChange((event) => {
       addFileEvent(event);
       try {
-        const pending = [event, ...fileEvents];
+        const pending = [event, ...fileEventsRef.current];
         const unique = new Set<string>();
         for (const ev of pending) {
           if (ev?.type === 'add' || ev?.type === 'change' || ev?.type === 'unlink') {
@@ -90,7 +95,9 @@ export const Home: React.FC = () => {
           }
         }
         updateStatus({ syncedFiles: unique.size });
-      } catch {}
+      } catch {
+        // ignore
+      }
     });
 
     return () => {

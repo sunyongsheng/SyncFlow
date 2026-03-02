@@ -164,6 +164,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
+release/
 downloads/
 eggs/
 .eggs/
@@ -178,3 +179,5 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+.DS_Store

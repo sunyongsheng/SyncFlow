@@ -39,11 +39,11 @@ if (!window.electron) {
       console.log('Mock: clearRecentActivity');
       return true;
     },
-    onSyncStatus: (callback) => {
+    onSyncStatus: () => {
       console.log('Mock: onSyncStatus subscribed');
       return () => {};
     },
-    onFileChange: (callback) => {
+    onFileChange: () => {
       console.log('Mock: onFileChange subscribed');
       return () => {};
     }

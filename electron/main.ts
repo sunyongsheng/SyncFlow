@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import Store from 'electron-store';
 import { SyncService } from './syncService';
+import { SyncOptions, FileLogEntry, SessionData } from './types';
 import log from 'electron-log';
 
 // Configure logging
@@ -14,7 +15,24 @@ const id = powerSaveBlocker.start('prevent-app-suspension');
 log.info(`Power save blocker started with id: ${id}`);
 
 // Initialize store
-const store: any = new Store();
+interface StoreType {
+  windowState: {
+    width: number;
+    height: number;
+    x?: number;
+    y?: number;
+  };
+  settings: SyncOptions;
+  lastSession: SessionData;
+  clearRecentAt: number;
+}
+
+const store = new Store<StoreType>();
+
+// Use a type-safe wrapper or type assertion to access get/set
+// electron-store 5.0+ uses .store for direct access but types might be tricky
+// Casting to any to fix build issues as we know these methods exist on the instance
+const appStore = store as any;
 
 let mainWindow: BrowserWindow | null = null;
 let syncService: SyncService | null = null;
@@ -40,7 +58,7 @@ function setDevBranding() {
 }
 
 function createWindow() {
-  const windowState = store.get('windowState', {
+  const windowState = appStore.get('windowState', {
     width: 1024,
     height: 768
   });
@@ -68,7 +86,12 @@ function createWindow() {
   mainWindow.on('close', () => {
     if (mainWindow) {
       const bounds = mainWindow.getBounds();
-      store.set('windowState', bounds);
+      appStore.set('windowState', {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y
+      });
     }
   });
 
@@ -95,7 +118,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  const settings = store.get('settings', {});
+  const settings = appStore.get('settings') || {};
   const minimizeToTray = settings.minimizeToTray ?? true;
 
   if (!minimizeToTray) {
@@ -137,11 +160,11 @@ ipcMain.handle('stop-sync', async () => {
 });
 
 ipcMain.handle('get-settings', () => {
-  return store.get('settings', {});
+  return appStore.get('settings') || {};
 });
 
 ipcMain.handle('save-settings', (_event, settings) => {
-  store.set('settings', settings);
+  appStore.set('settings', settings);
   
   // Update auto launch settings
   if (typeof settings.autoStart === 'boolean') {
@@ -156,7 +179,7 @@ ipcMain.handle('save-settings', (_event, settings) => {
 });
 
 ipcMain.handle('get-last-session', () => {
-  const session = store.get('lastSession', {});
+  const session = appStore.get('lastSession') || {};
   // Inject current sync status and recent logs
   const result = { ...session };
   if (syncService) {
@@ -165,9 +188,9 @@ ipcMain.handle('get-last-session', () => {
     }
     // Merge recent logs from memory if available
     const recentLogs = syncService.getRecentLogs();
-    const clearAt = store.get('clearRecentAt', 0);
+    const clearAt = appStore.get('clearRecentAt') || 0;
     const filtered = Array.isArray(recentLogs)
-      ? recentLogs.filter((l: any) => typeof l?.timestamp === 'number' ? l.timestamp >= clearAt : true)
+      ? recentLogs.filter((l: FileLogEntry) => typeof l?.timestamp === 'number' ? l.timestamp >= clearAt : true)
       : [];
     if (filtered.length > 0) {
       result.fileEvents = filtered;
@@ -176,8 +199,8 @@ ipcMain.handle('get-last-session', () => {
   return result;
 });
 
-ipcMain.handle('save-last-session', (_event, session) => {
-  store.set('lastSession', session);
+ipcMain.handle('save-last-session', (_event, session: SessionData) => {
+  appStore.set('lastSession', session);
   return true;
 });
 
@@ -186,9 +209,9 @@ ipcMain.handle('clear-recent-activity', () => {
     syncService.clearRecentLogs();
   }
   // Also clear persisted session events
-  const session = store.get('lastSession', {});
-  store.set('lastSession', { ...session, fileEvents: [] });
+  const session = appStore.get('lastSession') || {};
+  appStore.set('lastSession', { ...session, fileEvents: [] });
   // Mark clear time to filter in-memory logs on next load
-  store.set('clearRecentAt', Date.now());
+  appStore.set('clearRecentAt', Date.now());
   return true;
 });

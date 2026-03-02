@@ -35,28 +35,36 @@ graph TD
 
 ## 2. 技术描述
 
-- **前端框架**：React@18 + Tailwind CSS@3 + Vite
-- **初始化工具**：vite-init
-- **桌面应用框架**：Electron@27
-- **文件监控**：Chokidar@3（Node.js文件系统监视库）
-- **进程通信**：Electron IPC（主进程与渲染进程通信）
-- **状态管理**：React Context API + useReducer
-- **本地存储**：Electron Store（用户偏好设置持久化）
-- **打包工具**：Electron Builder（支持Mac和Windows双平台）
+* **前端框架**：React\@18 + Tailwind CSS\@3 + Vite
+
+* **初始化工具**：vite-init
+
+* **桌面应用框架**：Electron\@27
+
+* **文件监控**：Chokidar\@3（Node.js文件系统监视库）
+
+* **进程通信**：Electron IPC（主进程与渲染进程通信）
+
+* **状态管理**：React Context API + useReducer
+
+* **本地存储**：Electron Store（用户偏好设置持久化）
+
+* **打包工具**：Electron Builder（支持Mac和Windows双平台）
 
 ## 3. 路由定义
 
-| 路由 | 用途 |
-|-------|---------|
-| / | 主界面，显示文件同步控制面板和状态信息 |
-| /settings | 设置页面，配置同步规则和应用偏好 |
-| /about | 关于页面，显示应用信息和版本 |
+| 路由        | 用途                  |
+| --------- | ------------------- |
+| /         | 主界面，显示文件同步控制面板和状态信息 |
+| /settings | 设置页面，配置同步规则和应用偏好    |
+| /about    | 关于页面，显示应用信息和版本      |
 
 ## 4. 核心模块定义
 
 ### 4.1 文件同步相关
 
 **文件变化事件类型**
+
 ```typescript
 interface FileChangeEvent {
   type: 'add' | 'change' | 'unlink' | 'addDir' | 'unlinkDir'
@@ -67,6 +75,7 @@ interface FileChangeEvent {
 ```
 
 **同步任务接口**
+
 ```typescript
 interface SyncTask {
   id: string
@@ -81,6 +90,7 @@ interface SyncTask {
 ```
 
 **同步状态接口**
+
 ```typescript
 interface SyncStatus {
   isWatching: boolean
@@ -97,6 +107,7 @@ interface SyncStatus {
 ### 4.2 应用配置相关
 
 **用户设置接口**
+
 ```typescript
 interface UserSettings {
   sourceDirectory: string
@@ -191,6 +202,7 @@ erDiagram
 ### 6.2 数据定义语言
 
 **同步日志表**
+
 ```sql
 -- 同步日志存储（使用SQLite本地数据库）
 CREATE TABLE sync_logs (
@@ -212,6 +224,7 @@ CREATE INDEX idx_sync_logs_operation ON sync_logs(operation);
 ```
 
 **应用设置表**
+
 ```sql
 -- 应用设置存储
 CREATE TABLE app_settings (
@@ -235,7 +248,9 @@ INSERT INTO app_settings (key, value, updated_at) VALUES
 ## 7. 关键技术实现
 
 ### 7.1 文件监控实现
+
 使用Chokidar库实现跨平台的文件系统监控：
+
 ```javascript
 // 主进程文件监控服务
 const chokidar = require('chokidar')
@@ -265,7 +280,9 @@ class FileWatcherService {
 ```
 
 ### 7.2 IPC通信实现
+
 主进程与渲染进程间的通信：
+
 ```javascript
 // IPC通道定义
 const IPC_CHANNELS = {
@@ -288,8 +305,11 @@ ipcMain.handle(IPC_CHANNELS.SELECT_DIRECTORY, async () => {
 ```
 
 ### 7.3 文件同步算法
+
 智能文件同步策略：
+
 1. **变化检测**：实时监控文件系统事件
 2. **冲突处理**：同名文件直接覆盖，删除操作同步执行
 3. **错误恢复**：失败任务自动重试，最多3次
 4. **性能优化**：批量处理相似操作，避免频繁IO
+

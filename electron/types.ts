@@ -35,23 +35,3 @@ export interface SessionData {
   fileEvents?: FileLogEntry[];
   isSyncing?: boolean;
 }
-
-export interface ElectronAPI {
-  selectDirectory: () => Promise<string | null>;
-  startSync: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<boolean>;
-  stopSync: () => Promise<boolean>;
-  getSettings: () => Promise<SyncOptions>;
-  saveSettings: (settings: SyncOptions) => Promise<boolean>;
-  getLastSession: () => Promise<SessionData>;
-  saveLastSession: (session: SessionData) => Promise<boolean>;
-  clearRecentActivity: () => Promise<boolean>;
-  
-  onSyncStatus: (callback: (status: SyncStatus) => void) => () => void;
-  onFileChange: (callback: (fileEvent: FileLogEntry) => void) => () => void;
-}
-
-declare global {
-  interface Window {
-    electron: ElectronAPI;
-  }
-}
