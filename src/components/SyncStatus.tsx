@@ -5,7 +5,7 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 
 export const SyncStatus: React.FC = () => {
-  const { status, isSyncing } = useStore();
+  const { status, isSyncing, settings } = useStore();
   const { t } = useTranslation();
 
   const getStatusColor = () => {
@@ -18,6 +18,20 @@ export const SyncStatus: React.FC = () => {
     if (status.error) return t('syncStatus.error');
     if (isSyncing) return t('syncStatus.syncing');
     return t('syncStatus.idle');
+  };
+
+  const getErrorText = (error: string) => {
+    if (error === 'ERR_SOURCE_MISSING') {
+      return settings.syncMode === 'twoWay'
+        ? t('syncStatus.dir1Missing', { path: status.missingDir })
+        : t('syncStatus.sourceMissing', { path: status.missingDir });
+    }
+    if (error === 'ERR_TARGET_MISSING') {
+      return settings.syncMode === 'twoWay'
+        ? t('syncStatus.dir2Missing', { path: status.missingDir })
+        : t('syncStatus.targetMissing', { path: status.missingDir });
+    }
+    return error;
   };
 
   return (
@@ -62,7 +76,7 @@ export const SyncStatus: React.FC = () => {
       {status.error && (
         <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 text-sm flex items-start gap-2">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{status.error}</span>
+          <span>{getErrorText(status.error)}</span>
         </div>
       )}
     </div>

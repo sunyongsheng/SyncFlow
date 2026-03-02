@@ -27,6 +27,7 @@ export interface SyncStatus {
   failedFiles?: number;
   error?: string;
   lastSyncTime?: number;
+  missingDir?: string;
 }
 
 export interface SessionData {

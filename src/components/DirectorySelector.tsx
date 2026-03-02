@@ -5,8 +5,11 @@ import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 
 export const DirectorySelector: React.FC = () => {
-  const { sourcePath, targetPath, setSourcePath, setTargetPath, isSyncing, settings } = useStore();
+  const { sourcePath, targetPath, setSourcePath, setTargetPath, isSyncing, settings, status } = useStore();
   const { t } = useTranslation();
+
+  const isSourceMissing = status.missingDir === sourcePath && !!sourcePath;
+  const isTargetMissing = status.missingDir === targetPath && !!targetPath;
 
   const handleSelectSource = async () => {
     if (isSyncing) return;
@@ -41,7 +44,8 @@ export const DirectorySelector: React.FC = () => {
           </div>
           <div 
             className={clsx(
-              "flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm truncate cursor-pointer hover:bg-slate-100 transition-colors",
+              "flex-1 px-3 py-2 border rounded-lg text-sm truncate cursor-pointer transition-colors",
+              isSourceMissing ? "bg-red-50 border-red-500 text-red-900" : "bg-slate-50 border-slate-200 hover:bg-slate-100",
               !sourcePath && "text-slate-400 italic",
               isSyncing && "opacity-50 cursor-not-allowed"
             )}
@@ -72,7 +76,8 @@ export const DirectorySelector: React.FC = () => {
           </div>
           <div 
             className={clsx(
-              "flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm truncate cursor-pointer hover:bg-slate-100 transition-colors",
+              "flex-1 px-3 py-2 border rounded-lg text-sm truncate cursor-pointer transition-colors",
+              isTargetMissing ? "bg-red-50 border-red-500 text-red-900" : "bg-slate-50 border-slate-200 hover:bg-slate-100",
               !targetPath && "text-slate-400 italic",
               isSyncing && "opacity-50 cursor-not-allowed"
             )}

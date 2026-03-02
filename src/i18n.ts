@@ -38,7 +38,11 @@ const resources = {
         syncing: "Syncing Active",
         error: "Error",
         syncedFiles: "Synced Files",
-        failures: "Failures"
+        failures: "Failures",
+        sourceMissing: "Source directory not found: {{path}}",
+        targetMissing: "Target directory not found: {{path}}",
+        dir1Missing: "Directory 1 not found: {{path}}",
+        dir2Missing: "Directory 2 not found: {{path}}"
       },
       fileChangeList: {
         created: "Created",
@@ -113,7 +117,11 @@ const resources = {
         syncing: "同步中",
         error: "错误",
         syncedFiles: "已同步文件",
-        failures: "失败"
+        failures: "失败",
+        sourceMissing: "源目录不存在: {{path}}",
+        targetMissing: "目标目录不存在: {{path}}",
+        dir1Missing: "目录 1 不存在: {{path}}",
+        dir2Missing: "目录 2 不存在: {{path}}"
       },
       fileChangeList: {
         created: "新建",

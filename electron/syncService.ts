@@ -78,6 +78,27 @@ export class SyncService {
     this.targetPath = targetPath;
     this.options = options || {};
     
+    // Check if directories exist
+    if (!fs.existsSync(sourcePath)) {
+      this.sendStatus({ 
+        isWatching: false, 
+        isSyncing: false, 
+        error: 'ERR_SOURCE_MISSING',
+        missingDir: sourcePath
+      });
+      return;
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      this.sendStatus({ 
+        isWatching: false, 
+        isSyncing: false, 
+        error: 'ERR_TARGET_MISSING',
+        missingDir: targetPath
+      });
+      return;
+    }
+
     log.info('Starting sync with options:', JSON.stringify(this.options));
     log.info(`Delete on Sync: ${this.options.deleteOnSync}`);
 
@@ -88,7 +109,15 @@ export class SyncService {
     this.suppressSet.clear();
 
     // Send initial status
-    this.sendStatus({ isWatching: true, isSyncing: true, totalFiles: 0, syncedFiles: 0, failedFiles: 0 });
+    this.sendStatus({ 
+      isWatching: true, 
+      isSyncing: true, 
+      totalFiles: 0, 
+      syncedFiles: 0, 
+      failedFiles: 0,
+      error: undefined,
+      missingDir: undefined
+    });
 
     const commonWatcherOptions = {
       ignored: (filePath: string) => this.shouldIgnore(filePath),
@@ -159,6 +188,29 @@ export class SyncService {
 
   private async handleFileChange(type: string, filePath: string) {
     if (!this.isSyncing) return;
+
+    // Check if directories exist
+    if (!fs.existsSync(this.sourcePath)) {
+      await this.stopSync();
+      this.sendStatus({
+        isWatching: false,
+        isSyncing: false,
+        error: 'ERR_SOURCE_MISSING',
+        missingDir: this.sourcePath
+      });
+      return;
+    }
+
+    if (!fs.existsSync(this.targetPath)) {
+      await this.stopSync();
+      this.sendStatus({
+        isWatching: false,
+        isSyncing: false,
+        error: 'ERR_TARGET_MISSING',
+        missingDir: this.targetPath
+      });
+      return;
+    }
 
     // Check if file should be ignored (Force recompile)
     if (this.shouldIgnore(filePath)) {
@@ -249,6 +301,29 @@ export class SyncService {
 
   private async handleFileChangeTwoWay(origin: 'source' | 'target', type: string, filePath: string) {
     if (!this.isSyncing) return;
+
+    // Check if directories exist
+    if (!fs.existsSync(this.sourcePath)) {
+      await this.stopSync();
+      this.sendStatus({
+        isWatching: false,
+        isSyncing: false,
+        error: 'ERR_SOURCE_MISSING',
+        missingDir: this.sourcePath
+      });
+      return;
+    }
+
+    if (!fs.existsSync(this.targetPath)) {
+      await this.stopSync();
+      this.sendStatus({
+        isWatching: false,
+        isSyncing: false,
+        error: 'ERR_TARGET_MISSING',
+        missingDir: this.targetPath
+      });
+      return;
+    }
 
     // Suppress if this path is flagged (echo from our own write)
     if (this.suppressSet.has(filePath)) {
