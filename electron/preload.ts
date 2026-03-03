@@ -4,6 +4,8 @@ import { SyncOptions, SyncStatus, FileLogEntry, SessionData } from './types';
 contextBridge.exposeInMainWorld('electron', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   startSync: (sourcePath: string, targetPath: string, options: SyncOptions) => ipcRenderer.invoke('start-sync', sourcePath, targetPath, options),
+  compareDirectories: (sourcePath: string, targetPath: string, options: SyncOptions) => ipcRenderer.invoke('compare-directories', sourcePath, targetPath, options),
+  syncAll: (sourcePath: string, targetPath: string, options: SyncOptions) => ipcRenderer.invoke('sync-all', sourcePath, targetPath, options),
   stopSync: () => ipcRenderer.invoke('stop-sync'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: SyncOptions) => ipcRenderer.invoke('save-settings', settings),

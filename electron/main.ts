@@ -151,6 +151,21 @@ ipcMain.handle('start-sync', async (_event, sourcePath, targetPath, options) => 
   return false;
 });
 
+ipcMain.handle('compare-directories', async (_event, sourcePath, targetPath, options) => {
+  if (syncService) {
+    return await syncService.compareDirectories(sourcePath, targetPath, options);
+  }
+  return [];
+});
+
+ipcMain.handle('sync-all', async (_event, sourcePath, targetPath, options) => {
+  if (syncService) {
+    await syncService.syncAll(sourcePath, targetPath, options);
+    return true;
+  }
+  return false;
+});
+
 ipcMain.handle('stop-sync', async () => {
   if (syncService) {
     await syncService.stopSync();

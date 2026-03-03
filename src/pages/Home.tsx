@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { Play, Square, RefreshCw } from 'lucide-react';
+import { Play, Square, RefreshCw, Loader2 } from 'lucide-react';
 import { useStore } from '../store';
 import { DirectorySelector } from '../components/DirectorySelector';
 import { SyncStatus } from '../components/SyncStatus';
 import { FileChangeList } from '../components/FileChangeList';
+import { SyncConflictModal } from '../components/SyncConflictModal';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +25,10 @@ export const Home: React.FC = () => {
     resetStats,
     setSettings
   } = useStore();
+
+  const [showConflictModal, setShowConflictModal] = React.useState(false);
+  const [conflicts, setConflicts] = React.useState<string[]>([]);
+  const [isChecking, setIsChecking] = React.useState(false);
 
   const fileEventsRef = React.useRef(fileEvents);
   useEffect(() => {
@@ -117,24 +122,13 @@ export const Home: React.FC = () => {
     }
   }, [sourcePath, targetPath, fileEvents]);
 
-  const handleStartSync = async () => {
-    if (!sourcePath || !targetPath) return;
+  const startSyncProcess = async (options: any) => {
     try {
       resetStats();
       
-      // Explicitly construct options object to ensure flat structure
-      const syncOptions = {
-        exclude: settings.fileFilters.exclude || [],
-        include: settings.fileFilters.include || [],
-        deleteOnSync: settings.deleteOnSync,
-        showNotifications: settings.showNotifications,
-        language: settings.language, // Pass current language to backend
-        syncMode: settings.syncMode
-      };
+      console.log('Starting sync with options:', options);
 
-      console.log('Starting sync with options:', syncOptions);
-
-      const success = await window.electron.startSync(sourcePath, targetPath, syncOptions);
+      const success = await window.electron.startSync(sourcePath, targetPath, options);
       if (success) {
         setSyncing(true);
       }
@@ -142,6 +136,71 @@ export const Home: React.FC = () => {
       console.error('Failed to start sync:', error);
       updateStatus({ error: 'Failed to start synchronization' });
     }
+  };
+
+  const handleStartSync = async () => {
+    if (!sourcePath || !targetPath) return;
+    
+    // Explicitly construct options object to ensure flat structure
+    const syncOptions = {
+      exclude: settings.fileFilters.exclude || [],
+      include: settings.fileFilters.include || [],
+      deleteOnSync: settings.deleteOnSync,
+      showNotifications: settings.showNotifications,
+      language: settings.language, // Pass current language to backend
+      syncMode: settings.syncMode
+    };
+
+    if (settings.syncMode === 'oneWay') {
+      setIsChecking(true);
+      try {
+        const diffs = await window.electron.compareDirectories(sourcePath, targetPath, syncOptions);
+        setIsChecking(false);
+        if (diffs && diffs.length > 0) {
+            setConflicts(diffs);
+            setShowConflictModal(true);
+            return;
+        }
+      } catch (err) {
+          console.error("Failed to compare directories", err);
+          setIsChecking(false);
+      }
+   }
+
+   startSyncProcess(syncOptions);
+  };
+
+  const handleConfirmSync = async () => {
+      setShowConflictModal(false);
+      const syncOptions = {
+        exclude: settings.fileFilters.exclude || [],
+        include: settings.fileFilters.include || [],
+        deleteOnSync: settings.deleteOnSync,
+        showNotifications: settings.showNotifications,
+        language: settings.language,
+        syncMode: settings.syncMode
+      };
+      
+      try {
+        await window.electron.syncAll(sourcePath, targetPath, syncOptions);
+      } catch(e) {
+         console.error("Sync all failed", e);
+      }
+      
+      startSyncProcess(syncOptions);
+  };
+  
+  const handleSkipSync = () => {
+      setShowConflictModal(false);
+      const syncOptions = {
+        exclude: settings.fileFilters.exclude || [],
+        include: settings.fileFilters.include || [],
+        deleteOnSync: settings.deleteOnSync,
+        showNotifications: settings.showNotifications,
+        language: settings.language,
+        syncMode: settings.syncMode
+      };
+      startSyncProcess(syncOptions);
   };
 
   const handleStopSync = async () => {
@@ -175,20 +234,20 @@ export const Home: React.FC = () => {
                {t('home.stopSync')}
              </button>
            ) : (
-             <button
-               onClick={handleStartSync}
-               disabled={!canStart}
-               className={clsx(
-                 "btn",
-                 canStart 
-                   ? "btn-primary" 
-                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
-               )}
-             >
-               <Play className="w-4 h-4 fill-current mr-2" />
-               {t('home.startSync')}
-             </button>
-           )}
+            <button
+              onClick={handleStartSync}
+              disabled={!canStart || isChecking}
+              className={clsx(
+                "btn",
+                canStart && !isChecking
+                  ? "btn-primary" 
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              {isChecking ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 fill-current mr-2" />}
+              {isChecking ? 'Checking...' : t('home.startSync')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -250,6 +309,14 @@ export const Home: React.FC = () => {
         <FileChangeList />
       </div>
       </section>
+
+      <SyncConflictModal
+        isOpen={showConflictModal}
+        onClose={() => setShowConflictModal(false)}
+        onSync={handleConfirmSync}
+        onSkip={handleSkipSync}
+        conflicts={conflicts}
+      />
     </div>
   );
 };

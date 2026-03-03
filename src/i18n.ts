@@ -78,6 +78,12 @@ const resources = {
         disabled: "Disabled",
         excludeFiles: "Exclude Files (Extensions)",
         excludeFilesDesc: "Comma separated list (e.g. .tmp, .log, .DS_Store)"
+      },
+      syncConflict: {
+        title: "Inconsistencies detected between target and source directories. Sync now?",
+        description: "Clicking Sync will overwrite all content in the target directory with the source directory.",
+        skip: "Skip",
+        sync: "Sync Now"
       }
     }
   },
@@ -157,6 +163,12 @@ const resources = {
         disabled: "禁用",
         excludeFiles: "排除文件 (扩展名)",
         excludeFilesDesc: "逗号分隔列表 (例如 .tmp, .log, .DS_Store)"
+      },
+      syncConflict: {
+        title: "发现目标目录文件和源目录不一致，是否立刻同步？",
+        description: "点击同步后源目录所有内容将覆盖目标目录",
+        skip: "跳过",
+        sync: "同步"
       }
     }
   }

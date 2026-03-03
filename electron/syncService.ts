@@ -161,6 +161,140 @@ export class SyncService {
     }
   }
 
+  async compareDirectories(sourcePath: string, targetPath: string, options: SyncOptions): Promise<string[]> {
+    this.sourcePath = sourcePath;
+    this.targetPath = targetPath;
+    this.options = options;
+    const inconsistencies: string[] = [];
+
+    const compareFileContent = (pathA: string, pathB: string): boolean => {
+      const bufA = Buffer.alloc(4096);
+      const bufB = Buffer.alloc(4096);
+      let fdA, fdB;
+      try {
+        fdA = fs.openSync(pathA, 'r');
+        fdB = fs.openSync(pathB, 'r');
+        let bytesReadA = 0;
+        let bytesReadB = 0;
+        
+        while (true) {
+          bytesReadA = fs.readSync(fdA, bufA, 0, 4096, null);
+          bytesReadB = fs.readSync(fdB, bufB, 0, 4096, null);
+          
+          if (bytesReadA !== bytesReadB) return false;
+          if (bytesReadA === 0) return true;
+          
+          if (Buffer.compare(bufA.slice(0, bytesReadA), bufB.slice(0, bytesReadB)) !== 0) return false;
+        }
+      } catch (err) {
+        log.error('Error comparing files:', err);
+        return false;
+      } finally {
+        if (fdA !== undefined) fs.closeSync(fdA);
+        if (fdB !== undefined) fs.closeSync(fdB);
+      }
+    };
+
+    const walk = (currentPath: string) => {
+      if (!fs.existsSync(currentPath)) return;
+      const items = fs.readdirSync(currentPath);
+      
+      for (const item of items) {
+        const fullSourcePath = path.join(currentPath, item);
+        
+        if (this.shouldIgnore(fullSourcePath)) continue;
+        
+        const relativePath = path.relative(sourcePath, fullSourcePath);
+        const fullTargetPath = path.join(targetPath, relativePath);
+        
+        let stat;
+        try {
+          stat = fs.statSync(fullSourcePath);
+        } catch (e) {
+          continue;
+        }
+        
+        if (stat.isDirectory()) {
+            walk(fullSourcePath);
+        } else {
+            if (!fs.existsSync(fullTargetPath)) {
+                inconsistencies.push(relativePath);
+            } else {
+                let targetStat;
+                try {
+                  targetStat = fs.statSync(fullTargetPath);
+                } catch (e) {
+                  inconsistencies.push(relativePath);
+                  continue;
+                }
+
+                if (stat.size !== targetStat.size) {
+                    inconsistencies.push(relativePath);
+                } else {
+                    if (!compareFileContent(fullSourcePath, fullTargetPath)) {
+                        inconsistencies.push(relativePath);
+                    }
+                }
+            }
+        }
+      }
+    };
+
+    if (fs.existsSync(sourcePath)) {
+        walk(sourcePath);
+    }
+    
+    return inconsistencies;
+  }
+
+  async syncAll(sourcePath: string, targetPath: string, options: SyncOptions): Promise<void> {
+    this.sourcePath = sourcePath;
+    this.targetPath = targetPath;
+    this.options = options;
+
+    const walkAndCopy = (currentPath: string) => {
+        if (!fs.existsSync(currentPath)) return;
+        const items = fs.readdirSync(currentPath);
+
+        for (const item of items) {
+          const fullSourcePath = path.join(currentPath, item);
+          if (this.shouldIgnore(fullSourcePath)) continue;
+
+          const relativePath = path.relative(sourcePath, fullSourcePath);
+          const fullTargetPath = path.join(targetPath, relativePath);
+          
+          let stat;
+          try {
+            stat = fs.statSync(fullSourcePath);
+          } catch (e) {
+            continue;
+          }
+          
+          if (stat.isDirectory()) {
+               if (!fs.existsSync(fullTargetPath)) {
+                   fs.mkdirSync(fullTargetPath, { recursive: true });
+               }
+               walkAndCopy(fullSourcePath);
+          } else {
+               const destDir = path.dirname(fullTargetPath);
+               if (!fs.existsSync(destDir)) {
+                   fs.mkdirSync(destDir, { recursive: true });
+               }
+               try {
+                 fs.copyFileSync(fullSourcePath, fullTargetPath);
+                 log.info(`Synced: ${fullSourcePath} -> ${fullTargetPath}`);
+               } catch (e) {
+                 log.error(`Failed to copy ${fullSourcePath} to ${fullTargetPath}`, e);
+               }
+          }
+        }
+    }
+    
+    if (fs.existsSync(sourcePath)) {
+        walkAndCopy(sourcePath);
+    }
+  }
+
   public getIsSyncing(): boolean {
     return this.isSyncing;
   }

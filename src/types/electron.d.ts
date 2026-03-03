@@ -39,6 +39,8 @@ export interface SessionData {
 export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>;
   startSync: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<boolean>;
+  compareDirectories: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<string[]>;
+  syncAll: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<void>;
   stopSync: () => Promise<boolean>;
   getSettings: () => Promise<SyncOptions>;
   saveSettings: (settings: SyncOptions) => Promise<boolean>;
