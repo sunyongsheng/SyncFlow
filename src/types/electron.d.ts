@@ -36,10 +36,15 @@ export interface SessionData {
   isSyncing?: boolean;
 }
 
+export interface ConflictFile {
+  path: string;
+  type: 'add' | 'change';
+}
+
 export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>;
   startSync: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<boolean>;
-  compareDirectories: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<string[]>;
+  compareDirectories: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<ConflictFile[]>;
   syncAll: (sourcePath: string, targetPath: string, options: SyncOptions) => Promise<void>;
   stopSync: () => Promise<boolean>;
   getSettings: () => Promise<SyncOptions>;

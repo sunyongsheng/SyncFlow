@@ -46,7 +46,14 @@ if (!window.electron) {
     onFileChange: () => {
       console.log('Mock: onFileChange subscribed');
       return () => {};
-    }
+    },
+    compareDirectories: async (source, target, options) => {
+      console.log('Mock: compareDirectories', source, target, options);
+      return [];
+    },
+    syncAll: async (sourcePath, targetPath, options) => {
+      console.log('Mock: syncAll', sourcePath, targetPath, options);
+    },
   };
 }
 

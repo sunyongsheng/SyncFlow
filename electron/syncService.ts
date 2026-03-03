@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { BrowserWindow, Notification } from 'electron';
 import log from 'electron-log';
-import { SyncOptions, FileLogEntry, SyncStatus } from './types';
+import { SyncOptions, FileLogEntry, SyncStatus, ConflictFile } from './types';
 
 export class SyncService {
   private watcher: FSWatcher | null = null; // one-way watcher
@@ -23,6 +23,7 @@ export class SyncService {
   constructor(mainWindow: BrowserWindow) {
     this.mainWindow = mainWindow;
   }
+
 
   public getRecentLogs() {
     return this.recentLogs;
@@ -161,11 +162,11 @@ export class SyncService {
     }
   }
 
-  async compareDirectories(sourcePath: string, targetPath: string, options: SyncOptions): Promise<string[]> {
+  async compareDirectories(sourcePath: string, targetPath: string, options: SyncOptions): Promise<ConflictFile[]> {
     this.sourcePath = sourcePath;
     this.targetPath = targetPath;
     this.options = options;
-    const inconsistencies: string[] = [];
+    const inconsistencies: ConflictFile[] = [];
 
     const compareFileContent = (pathA: string, pathB: string): boolean => {
       const bufA = Buffer.alloc(4096);
@@ -218,21 +219,21 @@ export class SyncService {
             walk(fullSourcePath);
         } else {
             if (!fs.existsSync(fullTargetPath)) {
-                inconsistencies.push(relativePath);
+                inconsistencies.push({ path: relativePath, type: 'add' });
             } else {
                 let targetStat;
                 try {
                   targetStat = fs.statSync(fullTargetPath);
                 } catch (e) {
-                  inconsistencies.push(relativePath);
+                  inconsistencies.push({ path: relativePath, type: 'add' });
                   continue;
                 }
 
                 if (stat.size !== targetStat.size) {
-                    inconsistencies.push(relativePath);
+                    inconsistencies.push({ path: relativePath, type: 'change' });
                 } else {
                     if (!compareFileContent(fullSourcePath, fullTargetPath)) {
-                        inconsistencies.push(relativePath);
+                        inconsistencies.push({ path: relativePath, type: 'change' });
                     }
                 }
             }

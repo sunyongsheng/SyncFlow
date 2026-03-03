@@ -6,6 +6,7 @@ export interface SyncOptions {
   language?: 'en' | 'zh';
   autoStart?: boolean;
   minimizeToTray?: boolean;
+  include?: string[];
 }
 
 export interface FileLogEntry {
@@ -35,4 +36,9 @@ export interface SessionData {
   targetPath?: string;
   fileEvents?: FileLogEntry[];
   isSyncing?: boolean;
+}
+
+export interface ConflictFile {
+  path: string;
+  type: 'add' | 'change';
 }

@@ -7,6 +7,7 @@ import { FileChangeList } from '../components/FileChangeList';
 import { SyncConflictModal } from '../components/SyncConflictModal';
 import { clsx } from 'clsx';
 import { useTranslation } from 'react-i18next';
+import { ConflictFile } from '../types/electron';
 
 export const Home: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -27,7 +28,7 @@ export const Home: React.FC = () => {
   } = useStore();
 
   const [showConflictModal, setShowConflictModal] = React.useState(false);
-  const [conflicts, setConflicts] = React.useState<string[]>([]);
+  const [conflicts, setConflicts] = React.useState<ConflictFile[]>([]);
   const [isChecking, setIsChecking] = React.useState(false);
 
   const fileEventsRef = React.useRef(fileEvents);
