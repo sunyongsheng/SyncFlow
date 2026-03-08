@@ -1,5 +1,5 @@
 {
-  "name": "file-synchronizer",
+  "name": "syncflow",
   "private": true,
   "version": "0.0.1",
   "description": "A powerful and easy-to-use file synchronization tool",
@@ -10,7 +10,7 @@
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.electron.json && cross-env NODE_ENV=development electron .",
-    "build": "tsc -b && vite build && tsc -p tsconfig.electron.json",
+    "build": "vite build && tsc -p tsconfig.electron.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc -b --noEmit",
@@ -62,15 +62,23 @@
   "build": {
     "productName": "SyncFlow",
     "appId": "top.aengus.filesync",
-    "asar": true,
+    "asar": {
+      "smartUnpack": true
+    },
     "directories": {
       "output": "release/${version}",
       "buildResources": "resources"
     },
     "files": [
-      "dist",
-      "dist-electron",
+      "dist/**/*",
+      "dist-electron/**/*",
       "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
+    },
+    "asarUnpack": [
+      "**/*.node"
     ],
     "mac": {
       "target": ["dmg", "zip"],
